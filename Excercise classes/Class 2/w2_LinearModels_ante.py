@@ -151,7 +151,7 @@ def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
         np.array: Returns the transformed vector or matrix.
     """
     # We can infer t from the shape of the transformation matrix.
-    if t==0:
+    if t == 0:
         t = Q_T.shape[1]
 
     # Initialize the numpy array
