@@ -87,7 +87,7 @@ def variance(
         raise Exception('Invalid transform provided.')
     
     cov = sigma*la.inv(x.T.dot(x)) if sigma is not None else None
-    se =  np.sqrt(cov)
+    se =  se = np.sqrt(np.diag(cov))  if cov is not None else None
     return sigma, cov, se
 
 
