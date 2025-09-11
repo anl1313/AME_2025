@@ -47,7 +47,7 @@ def est_ols( y: np.ndarray, x: np.ndarray) -> np.ndarray:
     Returns:
         np.array: Estimated beta hats.
     """
-    return   # Fill in
+    return la.inv(x.T.dot(x)).dot(x.T).dot(y)
 
 def variance( 
         transform: str, 
@@ -78,11 +78,11 @@ def variance(
     K=x.shape[1]
 
     if transform in ('', 're', 'fd'):
-          sigma = None # Fill in
+          sigma = SSR/(N*T-K)
     elif transform.lower() == 'fe':
-          sigma = None # Fill in
+          sigma = SSR/(N*(T))
     elif transform.lower() in ('be'): 
-          sigma = None # Fill in
+          sigma = None
     else:
         raise Exception('Invalid transform provided.')
     
