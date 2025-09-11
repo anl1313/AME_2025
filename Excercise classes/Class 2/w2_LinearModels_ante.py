@@ -23,14 +23,14 @@ def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> dict
         dict: A dictionary with the results from the ols-estimation.
     """
     
-    b_hat = None # Fill in
-    resid = None # Fill in
-    SSR = None # Fill in
-    SST = None # Fill in
-    R2 = None # Fill in
+    b_hat = la.inv(x.T @ x) @ x.T @ y
+    resid = y - x @ b_hat
+    SSR = resid.T @ resid
+    SST = ((y - np.mean(y)).T @ (y - np.mean(y)))
+    R2 = 1 - SSR/SST
 
     sigma, cov, se = variance(transform, SSR, x, N, T)
-    t_values =  None # Fill in
+    t_values = b_hat.flatten() / se
     
     names = ['b_hat', 'se', 'sigma', 't_values', 'R2', 'cov']
     results = [b_hat, se, sigma, t_values, R2, cov]
