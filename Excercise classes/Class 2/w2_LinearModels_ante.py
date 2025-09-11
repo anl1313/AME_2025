@@ -80,14 +80,14 @@ def variance(
     if transform in ('', 're', 'fd'):
           sigma = SSR/(N*T-K)
     elif transform.lower() == 'fe':
-          sigma = SSR/(N*(T))
+          sigma = SSR/(N*T-N-K)
     elif transform.lower() in ('be'): 
           sigma = None
     else:
         raise Exception('Invalid transform provided.')
     
-    cov =  None # Fill in
-    se =  None # Fill in
+    cov = sigma*la.inv(x.T.dot(x)) if sigma is not None else None
+    se =  np.sqrt(cov)
     return sigma, cov, se
 
 
