@@ -78,7 +78,7 @@ def variance(
     K=x.shape[1]
 
     if transform in ('', 're', 'fd'):
-          sigma = SSR/(N*T-K)
+          sigma = SSR/(N*(T-1)-K) # fjerner 1 for den obs vi fjerner ved fd
     elif transform.lower() == 'fe':
           sigma = SSR/(N*T-N-K)
     elif transform.lower() in ('be'): 
@@ -87,7 +87,7 @@ def variance(
         raise Exception('Invalid transform provided.')
     
     cov = sigma*la.inv(x.T.dot(x)) if sigma is not None else None
-    se =  se = np.sqrt(np.diag(cov))  if cov is not None else None
+    se = np.sqrt(np.diag(cov)) if cov is not None else None
     return sigma, cov, se
 
 
