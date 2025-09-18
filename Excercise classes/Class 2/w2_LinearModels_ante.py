@@ -8,7 +8,7 @@ def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> dict
     """Takes some np.arrays and estimates regular OLS, FE or FD.
     
 
-    Args:
+    Arguments in the function: 
         y (np.ndarray): The dependent variable, needs to have the shape (n*t, 1)
         x (np.ndarray): The independent variable(s). If only one independent 
         variable, then it needs to have the shape (n*t, 1).
