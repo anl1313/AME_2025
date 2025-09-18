@@ -245,6 +245,7 @@ def load_example_data():
     # Count how many persons we have. This returns a tuple with the 
     # unique IDs, and the number of times each person is observed.
     unique_id = np.unique(id_array, return_counts=True)
+    N = unique_id[0].size
     T = int(unique_id[1].mean())
     year = np.array(data[:, 1], dtype=int)
 
