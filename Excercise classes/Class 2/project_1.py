@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import linalg as la
 from tabulate import tabulate
+import scipy.stats as stats
 
 def estimate(y: np.ndarray, x: np.ndarray, transform='', N=None, T=None) -> dict:
     """Takes some np.arrays and estimates regular OLS, FE or FD.
@@ -151,7 +152,8 @@ def wald_test(R: np.ndarray, r: np.ndarray, b_hat: np.ndarray, cov: np.ndarray) 
     numerator = R @ b_hat - r
     denominator = R @ cov @ R.T
     wald = numerator.T @ la.inv(denominator) @ numerator
-    return wald.item()
+    p_value = 1 - stats.chi2.cdf(wald, df=R.shape[0])
+    return wald.item(), p_value
 
 def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
     """Takes a transformation matrix and performs the transformation on 
