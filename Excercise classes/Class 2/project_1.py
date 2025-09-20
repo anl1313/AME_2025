@@ -86,6 +86,8 @@ def variance(
     else:
         raise Exception('Invalid transform provided.')
     
+    # covariance matrix and standard errors
+    # 
     cov = sigma*la.inv(x.T.dot(x)) if sigma is not None else None
     se = np.sqrt(np.diag(cov)) if cov is not None else None
     return sigma, cov, se
@@ -133,6 +135,23 @@ def print_table(labels: tuple, results: dict, headers=None, title="Results", **k
     print(f"R² = {results.get('R2').item():.3f}")
     print(f"σ² = {results.get('sigma').item():.3f}")
 
+# funkton til at lave wald test
+def wald_test(R: np.ndarray, r: np.ndarray, b_hat: np.ndarray, cov: np.ndarray) -> float:
+    """Function to perform a wald test.
+
+    Args:
+        R (np.ndarray): The restriction matrix.
+        r (np.ndarray): The restriction values.
+        b_hat (np.ndarray): The estimated beta hats.
+        cov (np.ndarray): The covariance matrix of the estimates.
+
+    Returns:
+        float: The wald statistic.
+    """
+    numerator = R @ b_hat - r
+    denominator = R @ cov @ R.T
+    wald = numerator.T @ la.inv(denominator) @ numerator
+    return wald.item()
 
 def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
     """Takes a transformation matrix and performs the transformation on 
