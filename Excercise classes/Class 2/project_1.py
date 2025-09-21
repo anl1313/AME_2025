@@ -183,3 +183,15 @@ def perm( Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
     for i in range(int(A.shape[0]/t)):
         Z = np.vstack((Z, Q_T@A[i*t: (i + 1)*t]))
     return Z
+
+def perm_(Q_T: np.ndarray, A: np.ndarray, t=0) -> np.ndarray:
+    if t == 0:
+        t = Q_T.shape[1]
+    # Ensure A is 2D
+    A = np.atleast_2d(A)
+    N = A.shape[0] // t
+    result = []
+    for i in range(N):
+        block = A[i*t:(i+1)*t]
+        result.append(Q_T @ block)
+    return np.vstack(result)
