@@ -1,0 +1,94 @@
+blue = "#5aa9e6"  # lys blå
+
+fig = plt.figure(figsize=(10, 6), constrained_layout=True)
+gs = fig.add_gridspec(nrows=2, ncols=2, height_ratios=[1.2, 1.0])
+
+ax_top = fig.add_subplot(gs[0, :])                 # øverste (salg), span begge kolonner
+ax_bl  = fig.add_subplot(gs[1, 0], sharey=ax_top)  # nederst venstre, deler y med top
+ax_br  = fig.add_subplot(gs[1, 1], sharey=ax_top)  # nederst højre, deler y med top
+
+# Øverst: Salg (centeret)
+ax_top.hist(dat['ldsa'].dropna(), bins=30, color=blue, edgecolor="white", linewidth=0.5)
+ax_top.set_title("Deflated Sales (log)", loc="center")
+
+# Nederst venstre: Beskæftigelse
+ax_bl.hist(dat['lemp'].dropna(), bins=30, color=blue, edgecolor="white", linewidth=0.5)
+ax_bl.set_title("Employment (log)", loc="center")
+
+# Nederst højre: Kapital
+ax_br.hist(dat['lcap'].dropna(), bins=30, color=blue, edgecolor="white", linewidth=0.5)
+ax_br.set_title("Adjusted Capital Stock (log)", loc="center")
+
+# Fælles y-akse: kun én y-label på figuren
+for ax in (ax_top, ax_bl, ax_br):
+    ax.grid(True, alpha=0.25)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.set_ylabel("")              # ingen individuelle y-labels
+
+fig.supylabel("Frequency")          # fælles y-label for alle paneler
+
+# Skjul y-tick labels på højre nederste panel for mindre støj
+ax_br.tick_params(labelleft=False)
+
+# Ingen over-overskrift
+try:
+    fig._suptitle.remove()
+except Exception:
+    pass
+plt.show()
+
+
+
+years = np.sort(dat['year'].unique())
+
+# Blå palette: vælg et snævert interval af 'Blues' for harmoniske nuancer
+cmap = plt.cm.Blues
+colors = cmap(np.linspace(0.45, 0.90, len(years)))  # gør intervallet smallere/større efter smag
+palette = {y: colors[i] for i, y in enumerate(years)}
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
+
+# Venstre: Employment (log) vs Adjusted Sales (log)
+sns.scatterplot(
+    x='lemp', y='ldsa', data=dat, ax=axes[0],
+    hue='year', hue_order=years, palette=palette,
+    edgecolor="white", s=28, alpha=0.85, legend=False
+)
+sns.regplot(
+    x='lemp', y='ldsa', data=dat, ax=axes[0], scatter=False,
+    color="#3a3a3a", ci=None, line_kws={'linewidth': 2}
+)
+axes[0].set_xlabel("Employment (log)")
+axes[0].set_ylabel("")
+
+# Højre: Capital (log) vs Adjusted Sales (log)
+sns.scatterplot(
+    x='lcap', y='ldsa', data=dat, ax=axes[1],
+    hue='year', hue_order=years, palette=palette,
+    edgecolor="white", s=28, alpha=0.85, legend=True
+)
+sns.regplot(
+    x='lcap', y='ldsa', data=dat, ax=axes[1], scatter=False,
+    color="#3a3a3a", ci=None, line_kws={'linewidth': 2}
+)
+axes[1].set_xlabel("Adjusted Capital Stock (log)")
+axes[1].set_ylabel("")
+
+# Kosmetik
+for ax in axes:
+    ax.grid(True, alpha=0.25)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    sns.despine(ax=ax)
+
+fig.supylabel("Adjusted Sales (log)")
+axes[1].legend(title="Year", bbox_to_anchor=(1.02, 1), loc="upper left", borderaxespad=0)
+
+try:
+    fig._suptitle.remove()
+except Exception:
+    pass
+
+plt.tight_layout()
+plt.show()
