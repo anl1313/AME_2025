@@ -104,7 +104,7 @@ def calculate_penalty(X_tilde, y, penalty_method):
 
 
 # Post double lasso analysis function
-def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
+def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method, feature_names=None):
     """
     Perform post double lasso analysis.
 
@@ -114,6 +114,7 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
         X_stan (numpy.ndarray): The second stage covariates.
         y (numpy.ndarray): The second stage response variable.
         penalty_method (str): The chosen penalty method ('BCCH' or 'CV').
+        feature_names (list, optional): Names of the covariates.
 
     Returns:
         tuple: Contains alpha, standard error, lower bound of confidence interval, and upper bound of confidence interval.
@@ -129,26 +130,36 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
 
     # Run Lasso first stage
     fit_dz = Lasso(alpha=penalty_dz, max_iter=10000).fit(Z_stan, d)
-    coefs = fit_dz.coef_
+    coefs_dz = fit_dz.coef_
 
-    # Calculate residuals: (D-psi*Z)
+    # Calculate residuals: (D - psi*Z)
     resdz = d - fit_dz.predict(Z_stan)
 
-    # Count the number of non-zero coefficients
-    print("The number of non-zero coefficients in the first stage is {}".format(np.count_nonzero(coefs)))
+    # Count and display non-zero coefficients
+    nonzero_dz = np.nonzero(coefs_dz)[0]
+    print("The number of non-zero coefficients in the first stage is {}".format(len(nonzero_dz)))
+    if feature_names is not None:
+        selected_features_dz = [feature_names[i] for i in nonzero_dz]
+        print("Selected variables in the first stage:")
+        print(selected_features_dz)
 
     # Run Lasso second stage
     fit_yx = Lasso(alpha=penalty_yx, max_iter=10000).fit(X_stan, y)
-    coefs = fit_yx.coef_
+    coefs_yx = fit_yx.coef_
 
     # Calculate residuals
     resyx = y - fit_yx.predict(X_stan)
 
     # Calculate Y - Z@gamma (epsilon + alpha*d)
-    resyxz = y - Z_stan @ coefs[1:]
+    resyxz = y - Z_stan @ coefs_yx[1:]
 
-    # Count non-zero coefficients
-    print("The number of non-zero coefficients in the second stage is =", np.count_nonzero(coefs))
+    # Count and display non-zero coefficients
+    nonzero_yx = np.nonzero(coefs_yx)[0]
+    print("The number of non-zero coefficients in the second stage is =", len(nonzero_yx))
+    if feature_names is not None:
+        selected_features_yx = [feature_names[i] for i in nonzero_yx]
+        print("Selected variables in the second stage:")
+        print(selected_features_yx)
 
     # Calculate beta_PDL_hat
     num = resdz.T @ resyxz
@@ -166,18 +177,12 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
 
     # Calculate standard error
     se_PDL = np.sqrt(sigma2_PDL / N)
-
-    # Display standard error
     print("SE for beta_PDL_hat ", se_PDL.round(3))
 
-    # Calculate the quantile of the standard normal distribution that corresponds to the 95% confidence interval of a two-sided test
+    # Confidence interval
     q = norm.ppf(0.975)
-
-    # Calculate confidence interval
     CI_low_PDL = beta_PDL - q * se_PDL
     CI_high_PDL = beta_PDL + q * se_PDL
-
-    # Display confidence interval
     print("Confidence interval for alpha = ", (CI_low_PDL.round(3), CI_high_PDL.round(3)))
 
     return beta_PDL, se_PDL, CI_low_PDL, CI_high_PDL
@@ -186,15 +191,17 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
 
 #Lasso path
 import matplotlib.pyplot as plt
+from matplotlib.cm import get_cmap
 
-def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=100):
+def lasso_path_plot(X, y, feature_names=None, main_feature_names=None, penalty_methods=None, n_lambdas=100):
     """
     Plot Lasso coefficient paths from low to high penalty (left to right).
 
     Parameters:
-        X (ndarray): Design matrix (will be standardized if not already).
-        y (ndarray): Response variable (not standardized).
-        feature_names (list, optional): Variable names for the legend.
+        X (ndarray): Design matrix (already standardized).
+        y (ndarray): Response variable.
+        feature_names (list, optional): All feature names (incl. interactions).
+        main_feature_names (list, optional): Names of main (non-interaction) features to highlight.
         penalty_methods (dict, optional): Dictionary of {name: function}, e.g. {"BCCH": a2.BCCH, "CV": a2.CV}.
         n_lambdas (int): Number of penalty values.
 
@@ -203,11 +210,7 @@ def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=10
     """
 
     n, p = X.shape
-
-    # --- Standardize X if not standardized ---
-    #X_std = (X - X.mean(axis=0)) / X.std(axis=0, ddof=1)
-    #X_std = np.nan_to_num(X_std)
-    X_std = standardize(X)
+    X_std = X
 
     # --- Compute penalties ---
     vlines = {}
@@ -220,13 +223,12 @@ def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=10
 
     # --- Dynamic lambda grid (low → high) ---
     if len(penalties) > 0:
-        lam_min = min(penalties) / 10
+        lam_min = min(penalties) / 100
         lam_max = max(penalties) * 10
     else:
         lam_max = np.max(np.abs(X_std.T @ y)) / n
         lam_min = 0.01 * lam_max
 
-    # reversed order: low to high penalty (left to right)
     lambda_grid = np.logspace(np.log10(lam_min), np.log10(lam_max), n_lambdas)
 
     # --- Fit Lasso path ---
@@ -237,30 +239,52 @@ def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=10
 
     # --- Plot paths ---
     fig, ax = plt.subplots(figsize=(8, 5))
-
+    lines = []
     for j in range(p):
-        ax.plot(lambda_grid, coefs[:, j],
-                label=feature_names[j] if feature_names is not None else f"X{j+1}")
+        line, = ax.plot(lambda_grid, coefs[:, j],
+                        label=feature_names[j] if feature_names is not None else f"X{j+1}",
+                        linewidth=1)
+        lines.append(line)
 
     ax.set_xscale('log')
     ax.set_xlabel('Penalty λ (log scale)')
     ax.set_ylabel('Coefficient value')
-    #ax.set_title('Lasso Path')
 
     # --- Add vertical lines and markers ---
     colors = {"BCCH": "red", "CV": "blue"}
     for name, lam in vlines.items():
         color = colors.get(name, "grey")
-        ax.axvline(x=lam, linestyle='--', color=color, alpha=0.8, label=f"{name} penalty")
-
-        # Find nearest λ index
+        ax.axvline(x=lam, linestyle='--', color=color, alpha=0.8)
         idx = np.argmin(np.abs(lambda_grid - lam))
         yvals = coefs[idx, :]
-        ax.scatter([lam] * p, yvals, color=color, s=40, marker='o', edgecolor='black', zorder=5)
+        ax.scatter([lam] * p, yvals, color=color, s=40, marker='o',
+                   edgecolor='black', zorder=5)
 
-    ax.legend().set_visible(False)
+    # --- Highlight main features (legend only for those) ---
+    if feature_names is not None and main_feature_names is not None:
+        legend_indices = [i for i, name in enumerate(feature_names) if name in main_feature_names]
+
+        # Dynamisk farvepalette
+        cmap = get_cmap("tab20")  # giver op til 20 tydelige farver
+        highlight_colors = [cmap(i / max(1, len(legend_indices) - 1)) for i in range(len(legend_indices))]
+
+        for i, line in enumerate(lines):
+            if i in legend_indices:
+                color_idx = legend_indices.index(i)
+                line.set_label(feature_names[i])
+                line.set_color(highlight_colors[color_idx])
+                line.set_linewidth(1.8)
+            else:
+                line.set_color('grey')
+                line.set_alpha(0.6)
+                line.set_label(None)
+
+        # Legend kun for main features
+        handles = [lines[i] for i in legend_indices]
+        labels = [feature_names[i] for i in legend_indices]
+        ax.legend(handles, labels, loc=(1.04, 0), ncol=1, fontsize='small')
+
     plt.tight_layout()
     plt.show()
 
     return lambda_grid, coefs, vlines
-
