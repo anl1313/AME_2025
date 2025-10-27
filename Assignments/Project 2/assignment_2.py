@@ -187,13 +187,13 @@ import matplotlib.pyplot as plt
 
 def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=100):
     """
-    Plot Lasso coefficient paths and mark BCCH and CV penalties.
+    Plot Lasso coefficient paths from low to high penalty (left to right).
 
     Parameters:
-        X (ndarray): Standardized design matrix.
-        y (ndarray): Response variable.
-        feature_names (list, optional): List of variable names for the legend.
-        penalty_methods (dict, optional): Dictionary of {name: function} from a2, e.g. {"BCCH": a2.BCCH, "CV": a2.CV}.
+        X (ndarray): Design matrix (will be standardized if not already).
+        y (ndarray): Response variable (not standardized).
+        feature_names (list, optional): Variable names for the legend.
+        penalty_methods (dict, optional): Dictionary of {name: function}, e.g. {"BCCH": a2.BCCH, "CV": a2.CV}.
         n_lambdas (int): Number of penalty values.
 
     Returns:
@@ -202,23 +202,38 @@ def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=10
 
     n, p = X.shape
 
-    # Grid of lambda values
-    lambda_max = np.max(np.abs(X.T @ y)) / n
-    lambda_min = 0.01 * lambda_max
-    lambda_grid = np.logspace(np.log10(lambda_max), np.log10(lambda_min), n_lambdas)
+    # --- Standardize X if not standardized ---
+    #X_std = (X - X.mean(axis=0)) / X.std(axis=0, ddof=1)
+    #X_std = np.nan_to_num(X_std)
+    X_std = standardize(X)
 
-    coefs = np.zeros((n_lambdas, p))
-    for i, lam in enumerate(lambda_grid):
-        fit = Lasso(alpha=lam, max_iter=10000).fit(X, y)
-        coefs[i, :] = fit.coef_
-
-    # Compute penalties
+    # --- Compute penalties ---
     vlines = {}
+    penalties = []
     if penalty_methods is not None:
         for name, func in penalty_methods.items():
-            vlines[name] = func(X, y)
+            val = func(X_std, y)
+            vlines[name] = val
+            penalties.append(val)
 
-    # Plot paths
+    # --- Dynamic lambda grid (low → high) ---
+    if len(penalties) > 0:
+        lam_min = min(penalties) / 10
+        lam_max = max(penalties) * 10
+    else:
+        lam_max = np.max(np.abs(X_std.T @ y)) / n
+        lam_min = 0.01 * lam_max
+
+    # reversed order: low to high penalty (left to right)
+    lambda_grid = np.logspace(np.log10(lam_min), np.log10(lam_max), n_lambdas)
+
+    # --- Fit Lasso path ---
+    coefs = np.zeros((n_lambdas, p))
+    for i, lam in enumerate(lambda_grid):
+        fit = Lasso(alpha=lam, max_iter=10000).fit(X_std, y)
+        coefs[i, :] = fit.coef_
+
+    # --- Plot paths ---
     fig, ax = plt.subplots(figsize=(8, 5))
 
     for j in range(p):
@@ -228,21 +243,22 @@ def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=10
     ax.set_xscale('log')
     ax.set_xlabel('Penalty λ (log scale)')
     ax.set_ylabel('Coefficient value')
-    ax.set_title('Lasso Path')
+    #ax.set_title('Lasso Path')
 
-    # Add vertical lines
+    # --- Add vertical lines and markers ---
     colors = {"BCCH": "red", "CV": "blue"}
     for name, lam in vlines.items():
         color = colors.get(name, "grey")
         ax.axvline(x=lam, linestyle='--', color=color, alpha=0.8, label=f"{name} penalty")
 
-        # Find nearest lambda index
+        # Find nearest λ index
         idx = np.argmin(np.abs(lambda_grid - lam))
         yvals = coefs[idx, :]
         ax.scatter([lam] * p, yvals, color=color, s=40, marker='o', edgecolor='black', zorder=5)
 
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax.legend().set_visible(False)
     plt.tight_layout()
     plt.show()
 
     return lambda_grid, coefs, vlines
+
