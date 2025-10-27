@@ -181,3 +181,68 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
     print("Confidence interval for alpha = ", (CI_low_PDL.round(3), CI_high_PDL.round(3)))
 
     return beta_PDL, se_PDL, CI_low_PDL, CI_high_PDL
+
+#Lasso path
+import matplotlib.pyplot as plt
+
+def lasso_path_plot(X, y, feature_names=None, penalty_methods=None, n_lambdas=100):
+    """
+    Plot Lasso coefficient paths and mark BCCH and CV penalties.
+
+    Parameters:
+        X (ndarray): Standardized design matrix.
+        y (ndarray): Response variable.
+        feature_names (list, optional): List of variable names for the legend.
+        penalty_methods (dict, optional): Dictionary of {name: function} from a2, e.g. {"BCCH": a2.BCCH, "CV": a2.CV}.
+        n_lambdas (int): Number of penalty values.
+
+    Returns:
+        lambda_grid, coefs, vlines (tuple)
+    """
+
+    n, p = X.shape
+
+    # Grid of lambda values
+    lambda_max = np.max(np.abs(X.T @ y)) / n
+    lambda_min = 0.01 * lambda_max
+    lambda_grid = np.logspace(np.log10(lambda_max), np.log10(lambda_min), n_lambdas)
+
+    coefs = np.zeros((n_lambdas, p))
+    for i, lam in enumerate(lambda_grid):
+        fit = Lasso(alpha=lam, max_iter=10000).fit(X, y)
+        coefs[i, :] = fit.coef_
+
+    # Compute penalties
+    vlines = {}
+    if penalty_methods is not None:
+        for name, func in penalty_methods.items():
+            vlines[name] = func(X, y)
+
+    # Plot paths
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    for j in range(p):
+        ax.plot(lambda_grid, coefs[:, j],
+                label=feature_names[j] if feature_names is not None else f"X{j+1}")
+
+    ax.set_xscale('log')
+    ax.set_xlabel('Penalty λ (log scale)')
+    ax.set_ylabel('Coefficient value')
+    ax.set_title('Lasso Path')
+
+    # Add vertical lines
+    colors = {"BCCH": "red", "CV": "blue"}
+    for name, lam in vlines.items():
+        color = colors.get(name, "grey")
+        ax.axvline(x=lam, linestyle='--', color=color, alpha=0.8, label=f"{name} penalty")
+
+        # Find nearest lambda index
+        idx = np.argmin(np.abs(lambda_grid - lam))
+        yvals = coefs[idx, :]
+        ax.scatter([lam] * p, yvals, color=color, s=40, marker='o', edgecolor='black', zorder=5)
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+    plt.show()
+
+    return lambda_grid, coefs, vlines
