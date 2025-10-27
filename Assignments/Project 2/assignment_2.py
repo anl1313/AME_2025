@@ -181,6 +181,8 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method):
     print("Confidence interval for alpha = ", (CI_low_PDL.round(3), CI_high_PDL.round(3)))
 
     return beta_PDL, se_PDL, CI_low_PDL, CI_high_PDL
+    
+
 
 #Lasso path
 import matplotlib.pyplot as plt
