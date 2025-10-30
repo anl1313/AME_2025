@@ -59,7 +59,7 @@ def calculate_penalty(X_tilde, y, penalty_method):
         raise ValueError("Invalid penalty method. Use 'BCCH' or 'CV' or 'BRT.")
 
 
-# Post double lasso analysis function
+#################################### Post double lasso analysis function ####################################
 def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method, feature_names=None):
 
     # Calculate penalties
@@ -130,7 +130,7 @@ def post_double_lasso_analysis(Z_stan, d, X_stan, y, penalty_method, feature_nam
     return beta_PDL, se_PDL, CI_low_PDL, CI_high_PDL
     
 
-#Lasso path
+###################################### Lasso path ######################################
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 
