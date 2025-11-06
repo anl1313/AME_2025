@@ -42,7 +42,7 @@ def estimate(
     Q = lambda theta: np.mean(q(theta, y, x))
 
     # call optimizer
-    result = None # FILL IN: use "optimize.minimize" on the function Q, remember to give it **kwargs and options
+    result = optimize.minimize(Q, theta0, options={'disp': True}, **kwargs) # FILL IN: use "optimize.minimize" on the function Q, remember to give it **kwargs and options
 
     
     # compute standard errors 
@@ -94,23 +94,23 @@ def variance(
 
     if cov_type in ['Hessian', 'Sandwich']: 
         H_sum = sum_of_hessians(f_q, thetahat)
-        A = None # Fill in
+        A = H_sum / N
     
     # cov: P*P covariance matrix of theta 
     if cov_type == 'Hessian':
-        A_inv = None # Fill in
-        cov = None # FILL IN 
+        A_inv = la.inv(A)
+        cov = A_inv / N
     elif cov_type == 'Outer Product':
-        cov = None # FILL IN 
+        cov = la.inv(B) / N
     elif cov_type == 'Sandwich':
-        A_inv = None # Fill in
-        cov = None # FILL IN 
+        A_inv = la.inv(A)
+        cov = A_inv @ B @ A_inv / N
 
     # se: P-vector of std.errs. 
     if cov.all == None: 
         pass # this allows the file to be called before we have computed "cov" above :) 
     else: 
-        se = None # FILL IN: formula that uses the matrix cov 
+        se = np.sqrt(np.diag(cov)) # FILL IN: formula that uses the matrix cov 
 
     return cov, se
 
