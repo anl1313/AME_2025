@@ -24,6 +24,7 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     assert len(theta) == K+1, f'Theta should have K+1={K+1} values (K regressors + 1 for sigma2)'
 
     beta = theta[:-1] # first K values 
+    # we take the last element 
     sigma2 = theta[-1]*theta[-1] # last element
     
     # Make sure inputs has correct dimensions
@@ -32,9 +33,9 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     y = y.reshape(-1, 1)
 
     residual = y - x @ beta
-    ll = ll = -0.5*np.log(sigma2)-0.5*(residual*residual/sigma2)
+    ll = -0.5*np.log(sigma2)-0.5*(residual*residual/sigma2) 
     return ll
-  
+
 def starting_values(y, x):
     '''starting_values: 
     Args.
