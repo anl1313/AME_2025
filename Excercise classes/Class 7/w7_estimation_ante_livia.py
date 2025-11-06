@@ -43,7 +43,7 @@ def estimate(
 
     # call optimizer
     # we calculate the result as the minimization of the mean of the loss contributions
-    result = optimize.minimize(Q, theta0, method='BFGS', options=options, **kwargs)
+    result = optimize.minimize(Q, theta0, options=options, **kwargs)
 
     # compute standard errors 
     cov, se = variance(q, y, x, result, cov_type)   
@@ -101,16 +101,16 @@ def variance(
         A_inv = la.inv(A)
         cov = A_inv / N  
     elif cov_type == 'Outer Product':
-        cov = B 
+        cov = la.inv(B) /N
     elif cov_type == 'Sandwich':
         A_inv = la.inv(A)
-        cov = A_inv @ B @ A_inv
+        cov = A_inv @ B @ A_inv/N
 
     # se: P-vector of std.errs. 
     if cov.all == None: 
         pass # this allows the file to be called before we have computed "cov" above :) 
     else: 
-        se = None # FILL IN: formula that uses the matrix cov 
+        se = np.sqrt(cov.diagonal()) # FILL IN: formula that uses the matrix cov 
 
     return cov, se
 
