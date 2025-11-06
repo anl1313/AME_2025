@@ -33,7 +33,11 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     y = y.reshape(-1, 1)
 
     residual = y - x @ beta
+<<<<<<< HEAD:Excercise classes/Class 7/w7_LinearModel_ante.py
     ll = -0.5*np.log(sigma2)-0.5*residual**2/sigma2 # FILL IN loglikelihood vector (should be an N-vector)
+=======
+    ll = -0.5*np.log(sigma2)-0.5*(residual*residual/sigma2) 
+>>>>>>> 0932e92ae06ac59dd4c14351d5c54d162ab872ef:Excercise classes/Class 7/w7_LinearModel_ante_FREJA.py
     return ll
 # -0.5*np.log(2*np.pi) vi udelader konstanten, ford
 
