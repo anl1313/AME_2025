@@ -24,7 +24,6 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     assert len(theta) == K+1, f'Theta should have K+1={K+1} values (K regressors + 1 for sigma2)'
 
     beta = theta[:-1] # first K values 
-    # we take the last element 
     sigma2 = theta[-1]*theta[-1] # last element
     
     # Make sure inputs has correct dimensions
@@ -33,17 +32,8 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     y = y.reshape(-1, 1)
 
     residual = y - x @ beta
-<<<<<<< HEAD:Excercise classes/Class 7/w7_LinearModel_ante.py
-    ll = -0.5*np.log(sigma2)-0.5*residual**2/sigma2 # FILL IN loglikelihood vector (should be an N-vector)
-=======
-    ll = -0.5*np.log(sigma2)-0.5*(residual*residual/sigma2) 
->>>>>>> 0932e92ae06ac59dd4c14351d5c54d162ab872ef:Excercise classes/Class 7/w7_LinearModel_ante_FREJA.py
+    ll = None # FILL IN loglikelihood vector (should be an N-vector)
     return ll
-# -0.5*np.log(2*np.pi) vi udelader konstanten, ford
-
-# First, calculate the residual.
-# Then calculate the likelihood value, using the likelihood contribution equation from above.
-# Test if you got it right with the cell below. You might have to "reseed" by running the first cell in this notebook again
 
 def starting_values(y, x):
     '''starting_values: 
