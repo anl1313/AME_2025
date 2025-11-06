@@ -42,7 +42,8 @@ def estimate(
     Q = lambda theta: np.mean(q(theta, y, x))
 
     # call optimizer
-    result = optimize.minimize(Q, theta0, method ='BFGS', options = options, **kwargs) # FILL IN: use "optimize.minimize" on the function Q, remember to give it **kwargs and options
+    # we calculate the result as the minimization of the mean of the loss contributions
+    result = optimize.minimize(Q, theta0, method='BFGS', options=options, **kwargs)
 
     # compute standard errors 
     cov, se = variance(q, y, x, result, cov_type)   
@@ -93,17 +94,17 @@ def variance(
 
     if cov_type in ['Hessian', 'Sandwich']: 
         H_sum = sum_of_hessians(f_q, thetahat)
-        A = None # Fill in
+        A = H_sum/N
     
     # cov: P*P covariance matrix of theta 
     if cov_type == 'Hessian':
-        A_inv = None # Fill in
-        cov = None # FILL IN 
+        A_inv = la.inv(A)
+        cov = A_inv / N  
     elif cov_type == 'Outer Product':
-        cov = None # FILL IN 
+        cov = B 
     elif cov_type == 'Sandwich':
-        A_inv = None # Fill in
-        cov = None # FILL IN 
+        A_inv = la.inv(A)
+        cov = A_inv @ B @ A_inv
 
     # se: P-vector of std.errs. 
     if cov.all == None: 
