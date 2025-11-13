@@ -2,7 +2,7 @@ import numpy as np
 from numpy import random
 from numpy import linalg as la
 from scipy.stats import norm
-import LinearModel as lm
+#import LinearModel as lm
 
 
 name = 'Logit'

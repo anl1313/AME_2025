@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import random
 from scipy.stats import norm
-import LinearModel as lm
+#import LinearModel as lm
 
 name = 'Probit'
 
