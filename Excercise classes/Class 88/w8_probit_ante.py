@@ -10,15 +10,15 @@ name = 'Probit'
 DOCHECKS = True 
 
 def G(z): 
-    # Fill in
-    return None 
+    G_z = norm.cdf(z)
+    return G_z 
 
 def q(theta, y, x): 
-    # Fill in 
-    return None
+    """q: criterion function, and since we minimize - it's the negative log likelihood""" 
+    return -loglikelihood(theta, y, x)
+    
 
 def loglikelihood(theta, y, x):
-
     # making sure inputs are as expected 
     if DOCHECKS: 
         assert np.isin(y, [0,1]).all(), f'y must be binary: found non-binary elements.'
@@ -29,23 +29,26 @@ def loglikelihood(theta, y, x):
         assert theta.ndim == 1 
         assert theta.size == K 
 
-    Gxb = None # Fill in 
+    Gxb = G(x @ theta)
     
     # we cannot take the log of 0.0
     Gxb = np.fmax(Gxb, 1e-8)    # truncate below at 0.00000001 
     Gxb = np.fmin(Gxb, 1.-1e-8) # truncate above at 0.99999999
-
-    ll = None # Fill in 
+    # define log likelihood contributions
+    ll = y*np.log(Gxb) + (1.0 - y)*np.log(1.0 - Gxb)
     return ll
 
+from scipy import linalg as la
 
 def starting_values(y,x): 
-     # Fill in
-    return None 
+    # OLS estimates as starting values 
+    b_hat = la.solve(x.T@x, x.T@y) # equivalent but less efficient: la.inv(x.T@x) @ x.T@y
+    return 2.5*b_hat
+
 
 def predict(theta, x): 
     # the "prediction" is just Pr(y=1|x)
-    yhat = None # Fill in  
+    yhat = G(x@theta)  
     return yhat 
 
 def Ginv(p): 
