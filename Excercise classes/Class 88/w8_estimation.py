@@ -7,7 +7,7 @@ import time
 
 
 def estimate(
-        q: object, 
+        q, # the function we are minimizing (the mean of) 
         theta0: list, 
         y: np.ndarray, 
         x: np.ndarray, 
@@ -42,19 +42,17 @@ def estimate(
     Q = lambda theta: np.mean(q(theta, y, x))
 
     # call optimizer
-    # we calculate the result as the minimization of the mean of the loss contributions
     result = optimize.minimize(Q, theta0, options=options, **kwargs)
-
-    # compute standard errors 
+    
     cov, se = variance(q, y, x, result, cov_type)   
 
     # collect output in a dict 
     res = {
-        'theta_hat': result.x,
+        'theta': result.x,
         'se':       se,
-        't_values': result.x / se,
+        't': result.x / se,
         'cov':      cov,
-        'success':  result.success, # bool, whether convergence was successful 
+        'success':  result.success, # bool, whether convergence was succesful 
         'nit':      result.nit, # no. algorithm iterations 
         'nfev':     result.nfev, # no. function evaluations 
         'fun':      result.fun # function value at termination 
@@ -89,40 +87,37 @@ def variance(
     f_q = lambda theta : q(theta,y,x) # as q(), but only a function of theta, whereas q also takes y,x as inputs
     s = centered_grad(f_q, thetahat)
 
-    # "B" matrix (outer product of the scores)
+    # "B" matrix 
     B = (s.T@s)/N
 
     if cov_type in ['Hessian', 'Sandwich']: 
-        H_sum = sum_of_hessians(f_q, thetahat)
-        A = H_sum/N
+        H = hessian(f_q, thetahat)/N
+        H_inv = la.inv(H)    
     
     # cov: P*P covariance matrix of theta 
     if cov_type == 'Hessian':
-        A_inv = la.inv(A)
-        cov = A_inv / N  
+        A_inv = H_inv #result.hess_inv
+        cov = 1/N * A_inv
     elif cov_type == 'Outer Product':
-        cov = la.inv(B) /N
+        cov = 1/N * la.inv(B)
     elif cov_type == 'Sandwich':
-        A_inv = la.inv(A)
-        cov = A_inv @ B @ A_inv/N
+        A_inv = H_inv #result.hess_inv
+        cov = 1/N * (A_inv @ B @ A_inv)
 
     # se: P-vector of std.errs. 
-    if cov.all == None: 
-        pass # this allows the file to be called before we have computed "cov" above :) 
-    else: 
-        se = np.sqrt(cov.diagonal()) # FILL IN: formula that uses the matrix cov 
+    se = np.sqrt(np.diag(cov))
 
     return cov, se
 
 
 def centered_grad(f, x0: np.ndarray, h:float=1.49e-08) -> np.ndarray:
     '''centered_grad: numerical gradient calculator
-    Args.
+    Args:
         f: function handle taking *one* input, f(x0). f can return a vector. 
         x0: P-vector, the point at which to compute the numerical gradient 
 
-    Returns
-        grad: N*P matrix of numerical gradients. 
+    Returns:
+        grad: N x P matrix of numerical gradients. 
     '''
     assert x0.ndim == 1, f'Assumes x0 is a flattened array'
     P = x0.size 
@@ -139,7 +134,7 @@ def centered_grad(f, x0: np.ndarray, h:float=1.49e-08) -> np.ndarray:
         x1 = x0.copy()  # forward point
         x_1 = x0.copy() # backwards 
 
-        # take the step for the i'th coordinate only 
+        # take the step for the i-th coordinate only 
         if x0[i] != 0: 
             x1[i] = x0[i]*(1.0 + h)  
             x_1[i] = x0[i]*(1.0 - h)
@@ -162,7 +157,7 @@ def print_table(
         title:str = "Results",
         num_decimals:int = 4
     ) -> None:
-    """Prints a nice-looking table, must at least have coefficients, 
+    """Prints a nice looking table, must at least have coefficients, 
     standard errors and t-values. The number of coefficients must be the
     same length as the labels.
 
@@ -170,18 +165,18 @@ def print_table(
         theta_label (list): List of labels for estimated parameters
         results (dict): The output from estimate()
         dictionary with at least the following keys:
-            'theta_hat', 'se', 't_values'
+            'theta', 'se', 't'
         headers (list, optional): Column headers. Defaults to 
             ["", "Beta", "Se", "t-values"].
         title (str, optional): Table title. Defaults to "Results".
         num_decimals: (int) where to round off results (=None to disable)
     """
-    assert len(theta_label) == len(results['theta_hat'])
+    assert len(theta_label) == len(results['theta'])
     
     tab = pd.DataFrame({
-       'theta': results['theta_hat'], 
+       'theta': results['theta'], 
         'se': results['se'], 
-        't': results['t_values']
+        't': results['t']
         }, index=theta_label)
     
     if num_decimals is not None: 
@@ -193,7 +188,27 @@ def print_table(
     print(title)
     return tab 
 
-def sum_of_hessians( fhandle , x0 , h=1e-5 ) -> np.ndarray: 
+def monte_carlo(model, theta, N:int, R:int, xlab=None): 
+    K = theta.size
+    if xlab is None: 
+        xlab = [f'x{k}' for k in range(K)]
+
+    # initialize list 
+    dfs = []
+    for r in range(R): 
+        y, x = model.sim_data(theta, N)
+        theta_start = model.starting_values(y, x)
+        res = estimate(model.q, theta_start, y, x, options={'disp':False})
+        df = pd.DataFrame({v:res[v] for v in ['theta', 'se', 't']})
+        df['r'] = r 
+        df['k'] = np.arange(K)
+        df['converged'] = res['success']
+        dfs.append(df)
+    
+    tab = pd.concat(dfs).reset_index(drop=True)
+    return tab
+
+def hessian( fhandle , x0 , h=1e-5 ) -> np.ndarray: 
     '''hessian(): computes the (K,K) matrix of 2nd partial derivatives
         using the aggregation "sum" (i.e. consider dividing by N)
 
@@ -214,7 +229,7 @@ def sum_of_hessians( fhandle , x0 , h=1e-5 ) -> np.ndarray:
     '''
 
     # Computes the hessian of the input function at the point x0 
-    assert x0.ndim == 1 , f'x0 must be 1-dimensional'
+    assert x0.ndim == 1, f'x0 must be 1-dimensional'
     assert callable(fhandle), 'fhandle must be a callable function handle'
 
     # aggregate rows with a raw sum (as opposed to the mean)
@@ -254,7 +269,7 @@ def sum_of_hessians( fhandle , x0 , h=1e-5 ) -> np.ndarray:
 
     # Double forward steps
     for k in range(K): 
-        for j in range(k+1): # only loop to the diagonal!! This is imposing symmetry to save computations
+        for j in range(k+1): # only loop to the diagonal. This is imposing symmetry to save computations
             
             # 1. find the new point (after double-stepping) 
             x2 = np.copy(x0) 
@@ -267,7 +282,7 @@ def sum_of_hessians( fhandle , x0 , h=1e-5 ) -> np.ndarray:
             # 2. compute function value 
             f2[k,j] = agg_fun(fhandle(x2))
             
-            # 3. fill out above the diagonal ()
+            # 3. fill out above the diagonal
             if j < k: # impose symmetry  
                 f2[j,k] = f2[k,j]
 
