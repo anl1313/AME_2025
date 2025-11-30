@@ -132,6 +132,9 @@ def compute_ape(thetahat, x, index):
     # Compute Average Partial Effect
     ape = np.mean(prob_differences)
 
+    # compute standard errors using delta method
+    
+
     return ape
 
 def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
