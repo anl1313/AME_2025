@@ -227,8 +227,8 @@ returns:
 
     # b. state link function
     z = x @ theta
-    g = norm.pdf(z)      # φ(z)
-    G = norm.cdf(z)      # Φ(z)
+    g = norm.pdf(z)     
+    G = norm.cdf(z)      
 
     # c. find score contributions
     # score_i = (y - Φ(z_i)) * φ(z_i)/(Φ(z_i)(1-Φ(z_i))) * x_i
@@ -238,7 +238,7 @@ returns:
     # d. observed information matrix I_opg = X' diag(scores_i^2) X / N
     I_opg = (scores.T @ scores) / N
 
-    # e. expected information matrix I_exp
+    # e. expected information matrix
     # Expected second derivative wrt η = xβ:
     # E[-d²ℓ/dη²] = φ(z)^2/(Φ(z)(1-Φ(z))) + z φ(z)
     W = g**2 / (G * (1 - G)) + z * g
@@ -247,6 +247,7 @@ returns:
     I_exp = (x.T @ (W[:, None] * x)) / N   # positive definite
 
     # S = I_opg - I_exp
+    # important here that i have not set the hessian negative!
     S = I_opg - I_exp
 
     # Extract unique elements (upper triangular "vech")
@@ -259,3 +260,25 @@ returns:
     pval = 1 - chi2.cdf(stat, df)
 
     return stat, pval
+
+def print_test_stats(stat, pval):
+    """
+    Print the results of White's Information Matrix Test (IMT) for probit model misspecification.
+
+    Parameters:
+    - stat: float
+        The IM test statistic.
+    - pval: float
+        The p-value associated with the test statistic.
+
+    Returns:
+    None
+    """
+    print("White's Information Matrix Test for Probit Model Misspecification")
+    print("------------------------------------------------------------------")
+    print(f"Test Statistic: {stat:.4f}")
+    print(f"P-value: {pval:.4f}")
+    if pval < 0.05:
+        print("Result: Reject the null hypothesis of correct model specification at the 5% significance level.")
+    else:
+        print("Result: Fail to reject the null hypothesis of correct model specification at the 5% significance level.")
