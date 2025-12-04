@@ -4,9 +4,11 @@ from numpy import linalg as la
 from scipy import optimize
 from scipy.stats import norm
 from scipy.stats import t
+from sklearn.feature_selection import chi2
 from tabulate import tabulate
 import w8_estimation as est
 import pandas as pd
+from scipy.stats import norm, chi2
 
 name = 'Probit'
 
@@ -173,3 +175,87 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
         return {
             'Estimate': ape_list,
         }
+
+# define White's information matrix test
+"""def whites_imt(theta,y,x):
+    """
+"""White's information matrix test for model misspecification in probit models.
+    theta: estimated parameters
+    y: binary indicator
+    x: explanatory variables 
+    Returns the test statistic and p-value. """
+"""
+    # a. find shape of regressor matrix
+    N,K =x.shape
+    # b. compute the score matrix
+    z = x@theta
+    # pass through link function
+    Gxb = G(z)
+    # compute score contributions
+    scores = (y - Gxb)[:,None]* ( (norm.pdf(z) / (Gxb * (1 - Gxb)))[:,None] * x )
+    # c. compute the information matrix
+    info_mat = (scores.T @ scores) / N
+    # d. compute the Hessian matrix
+    W = - ( (norm.pdf(z)**2) / (Gxb * (1 - Gxb))**2  + (z * norm.pdf(z)) / (Gxb * (1 - Gxb)) )
+    hess_mat = (x.T @ (W[:,None] * x)) / N
+    # e. compute the test statistic
+    imt_stat = N * np.trace( la.inv(-hess_mat) @ info_mat - np.eye(K) )**2
+    # f. compute the p-value from the chi-squared distribution with K(K+1)/2 degrees of freedom
+    dof = K * (K + 1) / 2
+    p_value = 1 - chi2.cdf(imt_stat, dof)
+    return imt_stat, p_value"""
+
+
+def whites_imt_2(theta, y, x):
+    """
+    White's Information Matrix Test (IMT) for probit model misspecification.
+
+    theta : (K,) array
+        Estimated probit parameters
+    y : (N,) array
+        Binary dependent variable
+    x : (N,K) array
+        Regressor matrix
+returns:
+    stat : float
+        IM test statistic
+    pval : float
+        Chi-square p-value with K(K+1)/2 degrees of freedom
+    """
+    # a. Get dimensions
+    N, K = x.shape
+
+    # b. state link function
+    z = x @ theta
+    g = norm.pdf(z)      # φ(z)
+    G = norm.cdf(z)      # Φ(z)
+
+    # c. find score contributions
+    # score_i = (y - Φ(z_i)) * φ(z_i)/(Φ(z_i)(1-Φ(z_i))) * x_i
+    adj = g / (G * (1 - G))
+    scores = (y - G)[:, None] * adj[:, None] * x
+
+    # d. observed information matrix I_opg = X' diag(scores_i^2) X / N
+    I_opg = (scores.T @ scores) / N
+
+    # e. expected information matrix I_exp
+    # Expected second derivative wrt η = xβ:
+    # E[-d²ℓ/dη²] = φ(z)^2/(Φ(z)(1-Φ(z))) + z φ(z)
+    W = g**2 / (G * (1 - G)) + z * g
+
+    # f. Expected information matrix I_exp = X' diag(W) X / N
+    I_exp = (x.T @ (W[:, None] * x)) / N   # positive definite
+
+    # S = I_opg - I_exp
+    S = I_opg - I_exp
+
+    # Extract unique elements (upper triangular "vech")
+    vech = S[np.triu_indices(K)]
+
+    # IM test statistic: N * vech(S)' vech(S)
+    stat = N * vech @ vech
+
+    df = K * (K + 1) // 2
+    pval = 1 - chi2.cdf(stat, df)
+
+    return stat, pval
