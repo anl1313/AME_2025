@@ -234,14 +234,17 @@ returns:
     # score_i = (y - Φ(z_i)) * φ(z_i)/(Φ(z_i)(1-Φ(z_i))) * x_i
     adj = g / (G * (1 - G))
     scores = (y - G)[:, None] * adj[:, None] * x
+    print("scores:", scores)
 
     # d. observed information matrix I_opg = X' diag(scores_i^2) X / N
     I_opg = (scores.T @ scores) / N
+    print("I_opg:", I_opg)
 
     # e. expected information matrix
     # Expected second derivative wrt η = xβ:
     # E[-d²ℓ/dη²] = φ(z)^2/(Φ(z)(1-Φ(z))) + z φ(z)
     W = g**2 / (G * (1 - G)) + z * g
+    print("W:", W)
 
     # f. Expected information matrix I_exp = X' diag(W) X / N
     I_exp = (x.T @ (W[:, None] * x)) / N   # positive definite
@@ -249,9 +252,14 @@ returns:
     # S = I_opg - I_exp
     # important here that i have not set the hessian negative!
     S = I_opg - I_exp
+    # print score variance and information matrix to debug
+    print("I_opg:", I_opg)
+    print("I_exp:", I_exp)
 
     # Extract unique elements (upper triangular "vech")
     vech = S[np.triu_indices(K)]
+    # print vech to debug
+    print("vech S:", vech)
 
     # IM test statistic: N * vech(S)' vech(S)
     stat = N * vech @ vech
