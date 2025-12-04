@@ -177,99 +177,7 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
         }
 
 # define White's information matrix test
-"""def whites_imt(theta,y,x):
-    """
-"""White's information matrix test for model misspecification in probit models.
-    theta: estimated parameters
-    y: binary indicator
-    x: explanatory variables 
-    Returns the test statistic and p-value. """
-"""
-    # a. find shape of regressor matrix
-    N,K =x.shape
-    # b. compute the score matrix
-    z = x@theta
-    # pass through link function
-    Gxb = G(z)
-    # compute score contributions
-    scores = (y - Gxb)[:,None]* ( (norm.pdf(z) / (Gxb * (1 - Gxb)))[:,None] * x )
-    # c. compute the information matrix
-    info_mat = (scores.T @ scores) / N
-    # d. compute the Hessian matrix
-    W = - ( (norm.pdf(z)**2) / (Gxb * (1 - Gxb))**2  + (z * norm.pdf(z)) / (Gxb * (1 - Gxb)) )
-    hess_mat = (x.T @ (W[:,None] * x)) / N
-    # e. compute the test statistic
-    imt_stat = N * np.trace( la.inv(-hess_mat) @ info_mat - np.eye(K) )**2
-    # f. compute the p-value from the chi-squared distribution with K(K+1)/2 degrees of freedom
-    dof = K * (K + 1) / 2
-    p_value = 1 - chi2.cdf(imt_stat, dof)
-    return imt_stat, p_value"""
-
-
-def whites_imt_2(theta, y, x):
-    """
-    White's Information Matrix Test (IMT) for probit model misspecification.
-
-    theta : (K,) array
-        Estimated probit parameters
-    y : (N,) array
-        Binary dependent variable
-    x : (N,K) array
-        Regressor matrix
-returns:
-    stat : float
-        IM test statistic
-    pval : float
-        Chi-square p-value with K(K+1)/2 degrees of freedom
-    """
-    # a. Get dimensions
-    N, K = x.shape
-
-    # b. state link function
-    z = x @ theta
-    g = norm.pdf(z)     
-    G = norm.cdf(z)      
-
-    # c. find score contributions
-    # score_i = (y - Φ(z_i)) * φ(z_i)/(Φ(z_i)(1-Φ(z_i))) * x_i
-    adj = g / (G * (1 - G))
-    scores = (y - G)[:, None] * adj[:, None] * x
-    print("scores:", scores)
-
-    # d. observed information matrix I_opg = X' diag(scores_i^2) X / N
-    I_opg = (scores.T @ scores) / N
-    print("I_opg:", I_opg)
-
-    # e. expected information matrix
-    # Expected second derivative wrt η = xβ:
-    # E[-d²ℓ/dη²] = φ(z)^2/(Φ(z)(1-Φ(z))) + z φ(z)
-    W = g**2 / (G * (1 - G)) + z * g
-    print("W:", W)
-
-    # f. Expected information matrix I_exp = X' diag(W) X / N
-    I_exp = (x.T @ (W[:, None] * x)) / N   # positive definite
-
-    # S = I_opg - I_exp
-    # important here that i have not set the hessian negative!
-    S = I_opg - I_exp
-    # print score variance and information matrix to debug
-    print("I_opg:", I_opg)
-    print("I_exp:", I_exp)
-
-    # Extract unique elements (upper triangular "vech")
-    vech = S[np.triu_indices(K)]
-    # print vech to debug
-    print("vech S:", vech)
-
-    # IM test statistic: N * vech(S)' vech(S)
-    stat = N * vech @ vech
-
-    df = K * (K + 1) // 2
-    pval = 1 - chi2.cdf(stat, df)
-
-    return stat, pval
-
-def whites_imt_probit_chat(theta, y, x):
+def whites_imt_probit(theta, y, x):
     """
     White's Information Matrix Test (IMT) for probit model.
 
@@ -297,31 +205,29 @@ def whites_imt_probit_chat(theta, y, x):
     g = norm.pdf(z)       # phi(z)
     G = norm.cdf(z)       # Phi(z)
 
-    # for sikkerhed: undgå 0 og 1 i nævnerne
+    #safety for probabilities
     eps = 1e-8
     G = np.clip(G, eps, 1 - eps)
 
-    # 1. score pr. observation: s_i
-    adj = g / (G * (1 - G))          # φ / (Φ(1-Φ))
-    scores = (y - G)[:, None] * adj[:, None] * x   # (N,K)
+    # score contributions s_i
+    adj = g / (G * (1 - G))        
+    scores = (y - G)[:, None] * adj[:, None] * x    
 
-    # 2. "outer product of gradients" B_hat = (1/N) Σ s_i s_i'
+    #outer products  
     B_hat = scores.T @ scores / N
 
-    # 3. expected information A_hat = (1/N) Σ A_i
-    # for probit: E[-∂²ℓ_i/∂z² | x_i] = φ(z)^2 / (Φ(z)(1-Φ(z)))
+    #informtion matrix A_hat
     w = g**2 / (G * (1 - G))         # (N,)
     A_hat = (x.T @ (w[:, None] * x)) / N
 
-    # 4. S-bar = B_hat - A_hat (sample version af informationsmatrix-lighed)
+    # 4. S-bar = B_hat - A_hat 
     S_bar = B_hat - A_hat
 
-    # 5. Konstruér S_i = s_i s_i' - A_i pr. observation
-    #    A_i = w_i * x_i x_i'
-    m = K * (K + 1) // 2  # antal elementer i vech
+    #construct vech(S_i) for each observation
+    m = K * (K + 1) // 2   
     S_vech = np.empty((N, m))
 
-    # helper: index til vech (øverste trekant inkl. diagonal)
+    # helper: index til vech  
     tri_idx = np.triu_indices(K)
 
     for i in range(N):
@@ -334,15 +240,15 @@ def whites_imt_probit_chat(theta, y, x):
         S_i = B_i - A_i                      # (K,K)
         S_vech[i, :] = S_i[tri_idx]          # vech(S_i)
 
-    # 6. estimer Ω-hat som kovarians af vech(S_i)
-    S_bar_vech = S_vech.mean(axis=0)                         # (m,)
-    S_tilde = S_vech - S_bar_vech[None, :]                   # centreret
-    Omega_hat = (S_tilde.T @ S_tilde) / N                    # (m,m)
+    #Omega-hat som kovarians af vech(S_i)
+    S_bar_vech = S_vech.mean(axis=0)                         
+    S_tilde = S_vech - S_bar_vech[None, :]                   
+    Omega_hat = (S_tilde.T @ S_tilde) / N                    
 
-    # robust ift. evt. singularitet
+    #Robust 
     Omega_inv = np.linalg.pinv(Omega_hat)
 
-    # 7. IM teststatistik: T = N * vech(S_bar)' Ω^{-1} vech(S_bar)
+    #IM teststatistik
     vech_S_bar = S_bar[tri_idx]                              # (m,)
     stat = float(N * vech_S_bar @ Omega_inv @ vech_S_bar)
 

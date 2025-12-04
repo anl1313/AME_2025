@@ -100,6 +100,106 @@ def sim_data(theta: np.ndarray, N:int):
     # 3. return 
     return y, x
 
+
+def whites_imt_logit(theta, y, x):
+    """
+    White's Information Matrix Test (IMT) for logit model.
+
+    Parameters
+    ----------
+    theta : (K,) array
+        Estimated logit parameters
+    y : (N,) array
+        Binary dependent variable (0/1)
+    x : (N,K) array
+        Regressor matrix
+
+    Returns
+    -------
+    stat : float
+        IM test statistic
+    pval : float
+        Chi-square p-value with K(K+1)/2 degrees of freedom
+    """
+    N, K = x.shape
+
+    #linear predictor
+    z = x @ theta
+    p = 1.0 / (1.0 + np.exp(-z))
+
+    #safety for log(0)
+    eps = 1e-8
+    p = np.clip(p, eps, 1 - eps)
+
+    #score pr. observation
+    scores = (y - p)[:, None] * x          
+
+    #outer products 
+    B_hat = scores.T @ scores / N
+
+    #A_hat: expected information matrix
+    w = p * (1 - p)                         
+    A_hat = (x.T @ (w[:, None] * x)) / N
+
+    #S_bar = B_hat - A_hat
+    S_bar = B_hat - A_hat
+
+    #S_i = B_i - A_i pr. observation 
+    m = K * (K + 1) // 2
+    S_vech = np.empty((N, m))
+    tri_idx = np.triu_indices(K)
+
+    for i in range(N):
+        s_i = scores[i, :][:, None]         
+        x_i = x[i, :][:, None]             
+
+        B_i = s_i @ s_i.T                  
+        A_i = w[i] * (x_i @ x_i.T)         
+
+        S_i = B_i - A_i                     
+        S_vech[i, :] = S_i[tri_idx]        
+
+    #Omega-hat som kovarians af vech(S_i)
+    S_bar_vech = S_vech.mean(axis=0)
+    S_tilde = S_vech - S_bar_vech[None, :]
+    Omega_hat = (S_tilde.T @ S_tilde) / N
+
+    Omega_inv = np.linalg.pinv(Omega_hat)
+
+    #IM test statistic
+    vech_S_bar = S_bar[tri_idx]
+    stat = float(N * vech_S_bar @ Omega_inv @ vech_S_bar)
+
+    df = m
+    pval = 1 - chi2.cdf(stat, df)
+
+    return stat, pval
+
+
+def print_test_stats(stat, pval):
+    """
+    Print the results of White's Information Matrix Test (IMT) for probit model misspecification.
+
+    Parameters:
+    - stat: float
+        The IM test statistic.
+    - pval: float
+        The p-value associated with the test statistic.
+
+    Returns:
+    None
+    """
+    print("White's Information Matrix Test for Probit Model Misspecification")
+    print("------------------------------------------------------------------")
+    print(f"Test Statistic: {stat:.4f}")
+    print(f"P-value: {pval:.4f}")
+    if pval < 0.05:
+        print("Result: Reject the null hypothesis of correct model specification at the 5% significance level.")
+    else:
+        print("Result: Fail to reject the null hypothesis of correct model specification at the 5% significance level.")
+        
+        
+
 def compute_ape(thetahat, x, index):
     """
     Compute the Average Partial Effect (APE) on the probability of experiencing force.
@@ -136,6 +236,7 @@ def compute_ape(thetahat, x, index):
     
 
     return ape
+
 
 def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
     """
@@ -177,57 +278,3 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
         return {
             'Estimate': ape_list,
         }
-def whites_imt_2(theta, y, x):
-    """
-    White's Information Matrix Test (IMT) for probit model misspecification.
-
-    theta : (K,) array
-        Estimated probit parameters
-    y : (N,) array
-        Binary dependent variable
-    x : (N,K) array
-        Regressor matrix
-returns:
-    stat : float
-        IM test statistic
-    pval : float
-        Chi-square p-value with K(K+1)/2 degrees of freedom
-    """
-    # a. Get dimensions
-    N, K = x.shape
-
-    # b. state logit link function
-    z = x@ theta
-    Gz = G(z)
-    g = Gz * (1 - Gz)  # pdf of logistic
-
-    # c. find score contributions
-    # score_i = (y - Φ(z_i)) * φ(z_i)/(Φ(z_i)(1-Φ(z_i))) * x_i
-    adj = g / (Gz * (1 - Gz))
-    scores = (y - Gz)[:, None] * adj[:, None] * x
-
-    # d. observed information matrix I_opg = X' diag(scores_i^2) X / N
-    I_opg = (scores.T @ scores) / N
-
-    # e. expected information matrix
-    # Expected second derivative wrt η = xβ:
-    # E[-d²ℓ/dη²] = φ(z)^2/(Φ(z)(1-Φ(z))) + z φ(z)
-    W = g**2 / (Gz * (1 - Gz)) + z * g
-    # f. Expected information matrix I_exp = X' diag(W) X / N
-    I_exp = (x.T @ (W[:, None] * x)) / N   # positive definite
-
-    # S = I_opg - I_exp
-    # important here that i have not set the hessian negative!
-    S = I_opg - I_exp
-
-    # Extract unique elements (upper triangular "vech")
-    vech = S[np.triu_indices(K)]
-
-    # IM test statistic: N * vech(S)' vech(S)
-    stat = N * vech @ vech
-
-    df = K * (K + 1) // 2
-    pval = 1 - chi2.cdf(stat, df)
-
-    return stat, pval
-        
