@@ -1,5 +1,6 @@
+from operator import index
 import numpy as np
-from numpy import random
+from numpy import indices, random
 from numpy import linalg as la
 from scipy import optimize
 from scipy.stats import norm
@@ -176,13 +177,12 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
             'Estimate': ape_list,
         }
 
-# define White's information matrix test
+# test af misspecifikation
 def whites_imt_probit(theta, y, x):
     """
     White's Information Matrix Test (IMT) for probit model.
 
-    Parameters
-    ----------
+    Params:
     theta : (K,) array
         Estimated probit parameters
     y : (N,) array
@@ -259,16 +259,11 @@ def whites_imt_probit(theta, y, x):
 
 def print_test_stats(stat, pval):
     """
-    Print the results of White's Information Matrix Test (IMT) for probit model misspecification.
+    Printer resultater af test
+    param: 
+    stat: teststørrelse
+    pval: p-værdi
 
-    Parameters:
-    - stat: float
-        The IM test statistic.
-    - pval: float
-        The p-value associated with the test statistic.
-
-    Returns:
-    None
     """
     print("White's Information Matrix Test for Probit Model Misspecification")
     print("------------------------------------------------------------------")
@@ -278,3 +273,45 @@ def print_test_stats(stat, pval):
         print("Result: Reject the null hypothesis of correct model specification at the 5% significance level.")
     else:
         print("Result: Fail to reject the null hypothesis of correct model specification at the 5% significance level.")
+
+def bootstrap(y, x, thetahat, indices, nB=1000):
+    """
+    beregner bootstrappede standardfejl for APE
+
+    input: 
+    y: binær outcome (vold eller ej), N x 1
+    x: kovariater, (N x K)
+    thetahat: estimator
+    indices: kolonner fra den fulde kovariatvektor
+    nB: antal resamplings
+
+    returns:
+    standardfejl på thetahat
+
+    """
+    # dimensioner
+    N = x.shape[0]
+    B = len(indices)
+
+    # tom matrix til res
+    boot_mat = np.zeros((nB, B))
+    # for hver resample i rækken...
+    for b in range(nB):
+        try:
+
+            # a. træk tilfældigt sample med replacement
+            idx = np.random.choice(N, size=N, replace=True)
+            x_b = x[idx, :]
+            y_b = y[idx]
+
+            # b. find APEs for de resamplede træk
+            for j, index in enumerate(indices):
+                boot_mat[b, j] = compute_ape(thetahat, x_b, index)
+        except Exception as e:
+            print(f"Bootstrap it. number {b} failed: {e}")
+            boot_mat[b,:] = np.nan
+
+    # bootstrap standardfejl
+    se = np.nanstd(boot_mat, axis=0) # vi har ingen NaNs i udgangspuntket, men dette er robust over for dem
+
+    return se

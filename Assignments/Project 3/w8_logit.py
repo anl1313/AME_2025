@@ -278,3 +278,44 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
         return {
             'Estimate': ape_list,
         }
+
+def bootstrap(y, x, thetahat, indices, nB=1000):
+    """
+    beregner bootstrappede standardfejl for APE
+
+    input: 
+    y: binær outcome (vold eller ej), N x 1
+    x: kovariater, (N x K)
+    thetahat: estimator
+    indices: kolonner fra den fulde kovariatvektor
+    nB: antal resamplings
+
+    returns:
+    standardfejl på thetahat
+
+    """
+    # dimensioner
+    N = x.shape[0]
+    B = len(indices)
+
+    # tom matrix til res
+    boot_mat = np.zeros((nB, B))
+    # for hver resample i rækken...
+    for b in range(nB):
+        try:
+
+            # a. træk tilfældigt sample med replacement
+            idx = np.random.choice(N, size=N, replace=True)
+            x_b = x[idx, :]
+            y_b = y[idx]
+
+            # b. find APEs for de resamplede træk
+            for j, index in enumerate(indices):
+                boot_mat[b, j] = compute_ape(thetahat, x_b, index)
+        except Exception as e:
+            print(f"Bootstrap it. number {b} failed: {e}")
+            boot_mat[b,:] = np.nan
+
+    # bootstrap standardfejl
+    se = np.nanstd(boot_mat, axis=0) # vi har ingen NaNs i udgangspuntket, men dette er robust over for dem
+    return se
