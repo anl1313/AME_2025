@@ -30,15 +30,14 @@ def loglikelihood(theta, y, x):
         assert theta.ndim == 1 
         assert theta.size == K 
 
-    # 0. unpack parameters 
-    # (trivial, we are just estimating the coefficients on x)
+    # unpack parameters 
     beta = theta 
     
-    # 1. latent index
+    # latent index
     z = x@beta
     Gxb = G(z)
     
-    # 2. avoid log(0.0) errors
+    # avoid log(0.0) errors
     h = 1e-8 # a tiny number 
     Gxb = np.fmax(Gxb, h)     # truncate below at 1e-8 
     Gxb = np.fmin(Gxb, 1.0-h) # truncate above at 0.99999999
@@ -73,31 +72,30 @@ def sim_data(theta: np.ndarray, N:int):
             x: (N,K) matrix of explanatory variables
     '''
     
-    # 0. unpack parameters from theta
+    # unpack parameters from theta
     # (trivial, only beta parameters)
     beta = theta
 
     K = theta.size 
     assert K>1, f'Only implemented for K >= 2'
     
-    # 1. simulate x variables, adding a constant 
+    # simulate x variables, adding a constant 
     oo = np.ones((N,1))
     xx = np.random.normal(size=(N,K-1))
     x  = np.hstack([oo, xx]);
     
-    # 2. simulate y values
-    
-    # 2.a draw error terms 
+    # simulate y values
+    # draw error terms 
     uniforms = np.random.uniform(size=(N,))
     u = Ginv(uniforms)
 
-    # 2.b compute latent index 
+    # compute latent index 
     ystar = x@beta + u
     
-    # 2.b compute observed y (as a float)
+    # compute observed y (as a float)
     y = (ystar>=0).astype(float)
 
-    # 3. return 
+    # return 
     return y, x
 
 
@@ -303,16 +301,16 @@ def bootstrap(y, x, thetahat, indices, nB=1000):
     # for every resample...
     for b in range(nB):
         try:
-            # a. draw randomly with replacement
+            # draw randomly with replacement
             idx = np.random.choice(N, size=N, replace=True) 
             x_b = x[idx, :]
             y_b = y[idx]
 
-            # b. RE-ESTIMATE the model on the bootstrap sample
+            # RE-ESTIMATE the model on the bootstrap sample
             # Use original thetahat as starting values
             theta_b = est.estimate(q, thetahat, y_b, x_b, cov_type='Sandwich')['theta']
 
-            # c. find APEs for resampled draws using the bootstrap estimates
+            # find APEs for resampled draws using the bootstrap estimates
             for j, index in enumerate(indices):
                 boot_mat[b, j] = compute_ape(theta_b, x_b, index)
         except Exception as e:
@@ -323,6 +321,7 @@ def bootstrap(y, x, thetahat, indices, nB=1000):
     se = np.nanstd(boot_mat, axis=0)
 
     return se
+
 def LM_test(y, x_restricted, theta_restricted, x_additional):
     """
     Lagrange Multiplier (LM) test for inclusion of additional variables in Probit model.
@@ -351,29 +350,29 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
     # define number of additional variables being tested
     q = x_additional.shape[1]  
     
-    # a. find fitted vals from restricted model
+    # find fitted vals from restricted model
     z_restricted = x_restricted @ theta_restricted
     yhat = G(z_restricted)  
     g = yhat * (1 - yhat)
     
-    # b. compute residuals from restricted model
+    # compute residuals from restricted model
     resid = y - yhat
     
-    # c. Compute the score contributions for the additional variables
+    # compute the score contributions for the additional variables
     eps = 1e-8
     yhat_safe = np.clip(yhat, eps, 1 - eps)
     
-    # d. Score contributions for additional variables
+    # ccore contributions for additional variables
     score_additional = resid[:, None] * x_additional  # (N, q)
     
-    # e. Compute average score (should be close to 0 under H0)
+    # compute average score (should be close to 0 under H0)
     score_mean = score_additional.mean(axis=0)  # (q,)
     
-    # f. Compute the information matrix for the additional variables
+    # compute the information matrix for the additional variables
     w = yhat_safe * (1 - yhat_safe)  # p(1-p)
     I_qq = (x_additional.T @ (w[:, None] * x_additional)) / N
     
-    # g. Compute LM statistic
+    # compute LM statistic
     try:
         I_qq_inv = np.linalg.inv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
@@ -382,7 +381,7 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
         I_qq_inv = np.linalg.pinv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
     
-    # h. Compute p-value from chi-square distribution
+    # compute p-value from chi-square distribution
     pval = 1 - chi2.cdf(stat, q)
     
     return stat, pval, q

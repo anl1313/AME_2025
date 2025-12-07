@@ -3,22 +3,24 @@
  & Full Sample \\
 Variable &  \\
 \midrule
-anyuseofforce_coded & 1.000000 \\
-const & 1.000000 \\
 sblack & 0.157895 \\
 shisp & 0.315789 \\
+swhite & 0.473684 \\
 sother & 0.052632 \\
 smale & 0.789474 \\
+sage & 30.789474 \\
 sempl & 0.473684 \\
 sincome & 2.052632 \\
 spop & 1.947368 \\
-sage & 3.078947 \\
-sagesq & 10.666842 \\
 daytime & 0.473684 \\
 inctype_lin & 1.684211 \\
 omajblack & 0.000000 \\
 omajhisp & 0.052632 \\
+omajwhite & 0.947368 \\
 omajother & 0.000000 \\
+osplit & 0.000000 \\
 sbehavior & 0.526316 \\
+year & 2011.000000 \\
+anyuseofforce_coded & 1.000000 \\
 \bottomrule
 \end{tabular}

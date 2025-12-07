@@ -75,31 +75,30 @@ def sim_data(theta: np.ndarray, N:int) -> tuple:
             x: (N,K) matrix of explanatory variables
     '''
 
-    # 0. unpack parameters from theta
-    # (simple, we are only estimating beta coefficients)
+    # unpack parameters from theta
     beta = theta
 
     K = theta.size 
     assert K>1, f'Not implemented for constant-only'
     
-    # 1. simulate x variables, adding a constant 
+    # simulate x variables, adding a constant 
     oo = np.ones((N,1))
     xx = np.random.normal(size=(N,K-1))
     x = np.hstack([oo, xx]);
     
-    # 2. simulate y values
+    # simulate y values
     
-    # 2.a draw error terms 
+    # draw error terms 
     uniforms = np.random.uniform(size=(N,))
     u = Ginv(uniforms)
 
-    # 2.b compute latent index 
+    # compute latent index 
     ystar = x@beta + u
     
-    # 2.b compute observed y (as a float)
+    # compute observed y (as a float)
     y = (ystar>=0).astype(float)
 
-    # 3. return 
+    # return 
     return y, x
 
 def compute_ape(thetahat, x, index):
@@ -220,7 +219,7 @@ def whites_imt_probit(theta, y, x):
     w = g**2 / (G * (1 - G))         # (N,)
     A_hat = (x.T @ (w[:, None] * x)) / N
 
-    # 4. S-bar = B_hat - A_hat 
+    # S-bar = B_hat - A_hat 
     S_bar = B_hat - A_hat
 
     #construct vech(S_i) for each observation
@@ -298,16 +297,16 @@ def bootstrap(y, x, thetahat, indices, nB=1000):
     # for every resample...
     for b in range(nB):
         try:
-            # a. draw randomly with replacement
+            # draw randomly with replacement
             idx = np.random.choice(N, size=N, replace=True) 
             x_b = x[idx, :]
             y_b = y[idx]
 
-            # b. RE-ESTIMATE the model on the bootstrap sample
+            # RE-ESTIMATE the model on the bootstrap sample
             # Use original thetahat as starting values
             theta_b = est.estimate(q, thetahat, y_b, x_b, cov_type='Sandwich')['theta']
 
-            # c. find APEs for resampled draws using the bootstrap estimates
+            # find APEs for resampled draws using the bootstrap estimates
             for j, index in enumerate(indices):
                 boot_mat[b, j] = compute_ape(theta_b, x_b, index)
         except Exception as e:
@@ -347,33 +346,33 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
     # define number of additional variables being tested
     q = x_additional.shape[1]  
     
-    # a. find fitted vals from restricted model
+    # find fitted vals from restricted model
     z_restricted = x_restricted @ theta_restricted
     yhat = G(z_restricted)  
     g = norm.pdf(z_restricted)  
     
-    # b. compute residuals from restricted model
+    # compute residuals from restricted model
     resid = y - yhat
     
-    # c. Compute the score contributions for the additional variables
+    # Compute the score contributions for the additional variables
     # Score for probit
     eps = 1e-8
     yhat_safe = np.clip(yhat, eps, 1 - eps)
     
-    # d. Weight for score
+    # Weight for score
     w = g / (yhat_safe * (1 - yhat_safe))
     
-    # e. Score contributions for additional variables: (y - yhat) * w * x_additional
+    # Score contributions for additional variables: (y - yhat) * w * x_additional
     score_additional = (resid[:, None] * w[:, None] * x_additional)  # (N, q)
     
-    # f. Compute average score (should be close to 0 under H0)
+    # Compute average score (should be close to 0 under H0)
     score_mean = score_additional.mean(axis=0)  # (q,)
     
-    # g. Compute the information matrix for the additional variables
+    # Compute the information matrix for the additional variables
     w_squared = (g**2) / (yhat_safe * (1 - yhat_safe))
     I_qq = (x_additional.T @ (w_squared[:, None] * x_additional)) / N
     
-    # h. Compute LM statistic
+    # compute LM statistic
     try:
         I_qq_inv = np.linalg.inv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
@@ -382,7 +381,7 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
         I_qq_inv = np.linalg.pinv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
     
-    # i. Compute p-value from chi-square distribution
+    # Compute p-value from chi-square distribution
     pval = 1 - chi2.cdf(stat, q)
     
     return stat, pval, q
