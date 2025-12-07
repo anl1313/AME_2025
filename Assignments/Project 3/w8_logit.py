@@ -281,41 +281,140 @@ def properties(x, thetahat, print_out: bool, se: bool, indices, labels):
 
 def bootstrap(y, x, thetahat, indices, nB=1000):
     """
-    beregner bootstrappede standardfejl for APE
+    calculates bootstrapped std errors for APEs
 
     input: 
-    y: binær outcome (vold eller ej), N x 1
-    x: kovariater, (N x K)
-    thetahat: estimator
-    indices: kolonner fra den fulde kovariatvektor
-    nB: antal resamplings
+    y: binary outcome (0/1), N x 1
+    x: covariates, (N x K)
+    thetahat: estimator from original sample (used as starting values)
+    indices: columns from the covariate vector
+    nB: number of resamplings
 
     returns:
-    standardfejl på thetahat
+    Standard errors on estimator
 
     """
-    # dimensioner
+    # dimensions
     N = x.shape[0]
     B = len(indices)
 
-    # tom matrix til res
+    # create empty matrix to store results
     boot_mat = np.zeros((nB, B))
-    # for hver resample i rækken...
+    # for every resample...
     for b in range(nB):
         try:
-
-            # a. træk tilfældigt sample med replacement
-            idx = np.random.choice(N, size=N, replace=True)
+            # a. draw randomly with replacement
+            idx = np.random.choice(N, size=N, replace=True) 
             x_b = x[idx, :]
             y_b = y[idx]
 
-            # b. find APEs for de resamplede træk
+            # b. RE-ESTIMATE the model on the bootstrap sample
+            # Use original thetahat as starting values
+            theta_b = est.estimate(q, thetahat, y_b, x_b, cov_type='Sandwich')['theta']
+
+            # c. find APEs for resampled draws using the bootstrap estimates
             for j, index in enumerate(indices):
-                boot_mat[b, j] = compute_ape(thetahat, x_b, index)
+                boot_mat[b, j] = compute_ape(theta_b, x_b, index)
         except Exception as e:
-            print(f"Bootstrap it. number {b} failed: {e}")
+            print(f"Bootstrap iteration {b} failed: {e}")
             boot_mat[b,:] = np.nan
 
-    # bootstrap standardfejl
-    se = np.nanstd(boot_mat, axis=0) # vi har ingen NaNs i udgangspuntket, men dette er robust over for dem
+    # bootstrap standard errors
+    se = np.nanstd(boot_mat, axis=0)
+
     return se
+def LM_test(y, x_restricted, theta_restricted, x_additional):
+    """
+    Lagrange Multiplier (LM) test for inclusion of additional variables in Probit model.
+    
+    Tests H0: coefficients on x_additional variables = 0
+    against H1: at least one coefficient on x_additional is non-zero
+    
+    Params:
+    y : (N,) array
+        Binary dependent variable (0/1)
+    x_restricted : (N, K) array
+        Regressor matrix for the RESTRICTED model (without additional variables)
+    theta_restricted : (K,) array
+        Estimated parameters from the RESTRICTED model
+    x_additional : (N, q) array
+        Additional regressors to test for inclusion (q = number of additional variables)
+    
+    Returns:
+    stat : LM test statistic
+    pval : P-value from chi-square distribution with q degrees of freedom
+    df : Degrees of freedom (number of additional variables tested)
+    """
+    
+    # Get dimensions
+    N, K = x_restricted.shape
+    # define number of additional variables being tested
+    q = x_additional.shape[1]  
+    
+    # Step 1: find fitted vals from restricted model
+    z_restricted = x_restricted @ theta_restricted
+    yhat = G(z_restricted)  
+    g = yhat * (1 - yhat)
+    
+    # Step 2: compute residuals from restricted model
+    resid = y - yhat
+    
+    # Step 3: Compute the score contributions for the additional variables
+    # Score for logit: s_i = (y_i - p_i) * x_i  
+    # For numerical stability
+    eps = 1e-8
+    yhat_safe = np.clip(yhat, eps, 1 - eps)
+    
+    # Score contributions for additional variables: (y - yhat) * x_additional
+    score_additional = resid[:, None] * x_additional  # (N, q)
+    
+    # Step 4: Compute average score (should be close to 0 under H0)
+    score_mean = score_additional.mean(axis=0)  # (q,)
+    
+    # Step 5: Compute the information matrix for the additional variables
+    # For logit: I_qq = (1/N) * sum_i [p_i(1-p_i) * x_additional_i' * x_additional_i]
+    w = yhat_safe * (1 - yhat_safe)  # p(1-p)
+    I_qq = (x_additional.T @ (w[:, None] * x_additional)) / N
+    
+    # Step 6: Compute LM statistic
+    # LM = N * score_mean' * I_qq^(-1) * score_mean
+    try:
+        I_qq_inv = np.linalg.inv(I_qq)
+        stat = float(N * score_mean @ I_qq_inv @ score_mean)
+    except np.linalg.LinAlgError:
+        # If singular, use pseudo-inverse
+        I_qq_inv = np.linalg.pinv(I_qq)
+        stat = float(N * score_mean @ I_qq_inv @ score_mean)
+    
+    # Step 7: Compute p-value from chi-square distribution
+    pval = 1 - chi2.cdf(stat, q)
+    
+    return stat, pval, q
+
+def print_LM_test(stat, pval, df, var_names=None):
+    """
+    Print results of LM test for variable inclusion.
+    
+    Parameters:
+    stat : LM test statistic
+    pval : P-value
+    df : Degrees of freedom
+    var_names : Names of the additional variables being tested
+    """
+    print("\nLagrange Multiplier (LM) Test for Variable Inclusion")
+    print("=" * 60)
+    if var_names:
+        print(f"Testing inclusion of: {', '.join(var_names)}")
+    print(f"Degrees of freedom: {df}")
+    print(f"LM Test Statistic: {stat:.4f}")
+    print(f"P-value: {pval:.4f}")
+    print("-" * 60)
+    if pval < 0.01:
+        print("Result: Reject H0 at 1% level - additional variables are significant")
+    elif pval < 0.05:
+        print("Result: Reject H0 at 5% level - additional variables are significant")
+    elif pval < 0.10:
+        print("Result: Reject H0 at 10% level - additional variables are significant")
+    else:
+        print("Result: Fail to reject H0 - additional variables are not significant")
+    print("=" * 60) 
