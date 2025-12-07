@@ -347,37 +347,33 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
     # define number of additional variables being tested
     q = x_additional.shape[1]  
     
-    # Step 1: find fitted vals from restricted model
+    # a. find fitted vals from restricted model
     z_restricted = x_restricted @ theta_restricted
     yhat = G(z_restricted)  
     g = norm.pdf(z_restricted)  
     
-    # Step 2: compute residuals from restricted model
+    # b. compute residuals from restricted model
     resid = y - yhat
     
-    # Step 3: Compute the score contributions for the additional variables
-    # Score for probit: s_i = (y_i - Phi(z_i)) * phi(z_i) / [Phi(z_i)(1-Phi(z_i))] * x_i
-    # For numerical stability
+    # c. Compute the score contributions for the additional variables
+    # Score for probit
     eps = 1e-8
     yhat_safe = np.clip(yhat, eps, 1 - eps)
     
-    # Weight for score: w_i = phi(z_i) / [Phi(z_i)(1-Phi(z_i))]
+    # d. Weight for score
     w = g / (yhat_safe * (1 - yhat_safe))
     
-    # Score contributions for additional variables: (y - yhat) * w * x_additional
+    # e. Score contributions for additional variables: (y - yhat) * w * x_additional
     score_additional = (resid[:, None] * w[:, None] * x_additional)  # (N, q)
     
-    # Step 4: Compute average score (should be close to 0 under H0)
+    # f. Compute average score (should be close to 0 under H0)
     score_mean = score_additional.mean(axis=0)  # (q,)
     
-    # Step 5: Compute the information matrix for the additional variables
-    # Under the restricted model, the augmented model's information matrix block is:
-    # I_qq = (1/N) * sum_i [w_i^2 * x_additional_i' * x_additional_i]
+    # g. Compute the information matrix for the additional variables
     w_squared = (g**2) / (yhat_safe * (1 - yhat_safe))
     I_qq = (x_additional.T @ (w_squared[:, None] * x_additional)) / N
     
-    # Step 6: Compute LM statistic
-    # LM = N * score_mean' * I_qq^(-1) * score_mean
+    # h. Compute LM statistic
     try:
         I_qq_inv = np.linalg.inv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
@@ -386,7 +382,7 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
         I_qq_inv = np.linalg.pinv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
     
-    # Step 7: Compute p-value from chi-square distribution
+    # i. Compute p-value from chi-square distribution
     pval = 1 - chi2.cdf(stat, q)
     
     return stat, pval, q

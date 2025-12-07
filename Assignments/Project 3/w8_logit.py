@@ -351,33 +351,29 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
     # define number of additional variables being tested
     q = x_additional.shape[1]  
     
-    # Step 1: find fitted vals from restricted model
+    # a. find fitted vals from restricted model
     z_restricted = x_restricted @ theta_restricted
     yhat = G(z_restricted)  
     g = yhat * (1 - yhat)
     
-    # Step 2: compute residuals from restricted model
+    # b. compute residuals from restricted model
     resid = y - yhat
     
-    # Step 3: Compute the score contributions for the additional variables
-    # Score for logit: s_i = (y_i - p_i) * x_i  
-    # For numerical stability
+    # c. Compute the score contributions for the additional variables
     eps = 1e-8
     yhat_safe = np.clip(yhat, eps, 1 - eps)
     
-    # Score contributions for additional variables: (y - yhat) * x_additional
+    # d. Score contributions for additional variables
     score_additional = resid[:, None] * x_additional  # (N, q)
     
-    # Step 4: Compute average score (should be close to 0 under H0)
+    # e. Compute average score (should be close to 0 under H0)
     score_mean = score_additional.mean(axis=0)  # (q,)
     
-    # Step 5: Compute the information matrix for the additional variables
-    # For logit: I_qq = (1/N) * sum_i [p_i(1-p_i) * x_additional_i' * x_additional_i]
+    # f. Compute the information matrix for the additional variables
     w = yhat_safe * (1 - yhat_safe)  # p(1-p)
     I_qq = (x_additional.T @ (w[:, None] * x_additional)) / N
     
-    # Step 6: Compute LM statistic
-    # LM = N * score_mean' * I_qq^(-1) * score_mean
+    # g. Compute LM statistic
     try:
         I_qq_inv = np.linalg.inv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
@@ -386,7 +382,7 @@ def LM_test(y, x_restricted, theta_restricted, x_additional):
         I_qq_inv = np.linalg.pinv(I_qq)
         stat = float(N * score_mean @ I_qq_inv @ score_mean)
     
-    # Step 7: Compute p-value from chi-square distribution
+    # h. Compute p-value from chi-square distribution
     pval = 1 - chi2.cdf(stat, q)
     
     return stat, pval, q
