@@ -11,7 +11,7 @@ def q(theta, y, x):
     Returns
         (N,) vector. 
     '''
-    return None # Fill in 
+    return -loglikelihood(theta, y, x) # Fill in: return negative loglikelihood 
 
 def starting_values(y, x): 
     '''starting_values(): returns a "reasonable" vector of parameters from which to start estimation

@@ -79,7 +79,7 @@ def variance(
         tuple: Returns the variance-covariance matrix and standard errors.
     """
     N = y.size
-    N,K = x.shape
+    N,K,J = x.shape
     thetahat = result.x
     P = thetahat.size
 
