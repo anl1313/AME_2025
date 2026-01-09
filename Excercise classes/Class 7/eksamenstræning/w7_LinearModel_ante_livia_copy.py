@@ -33,7 +33,8 @@ def loglikelihood(theta: np.ndarray, y: np.ndarray, x: np.ndarray) -> np.array:
     y = y.reshape(-1, 1)
 
     residual = y - x @ beta
-    ll = -0.5*np.log(sigma2)-0.5*residual**2/sigma2 # FILL IN loglikelihood vector (should be an N-vector)
+    ll = -0.5*np.log(sigma2)-0.5*(residual**2)/sigma2
+    # FILL IN loglikelihood vector (should be an N-vector)
     return ll
 # -0.5*np.log(2*np.pi) vi udelader konstanten, ford
 
