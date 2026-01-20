@@ -96,12 +96,12 @@ def variance(
     
     # cov: P*P covariance matrix of theta 
     if cov_type == 'Hessian':
-        A_inv = H_inv #result.hess_inv
+        A_inv = H_inv 
         cov = 1/N * A_inv
     elif cov_type == 'Outer Product':
         cov = 1/N * la.inv(B)
     elif cov_type == 'Sandwich':
-        A_inv = H_inv #result.hess_inv
+        A_inv = H_inv 
         cov = 1/N * (A_inv @ B @ A_inv)
 
     # se: P-vector of std.errs. 

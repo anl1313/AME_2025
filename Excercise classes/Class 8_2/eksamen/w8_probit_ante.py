@@ -1,24 +1,23 @@
 import numpy as np
 from numpy import random
 from scipy.stats import norm
-import LinearModel as lm
-
+import w8_LinearModel as lm
+import numpy.linalg as la
 name = 'Probit'
+import scipy
 
-# global flag to make silly checks 
+# global flag to make silly checks :D
 # disable to increase speed 
 DOCHECKS = True 
 
 def G(z): 
-    # Fill in
-    return None 
+    return scipy.stats.norm.cdf(z)
 
 def q(theta, y, x): 
-    # Fill in 
-    return None
+    # specify loss function
+    return -loglikelihood(theta, y, x)
 
 def loglikelihood(theta, y, x):
-
     # making sure inputs are as expected 
     if DOCHECKS: 
         assert np.isin(y, [0,1]).all(), f'y must be binary: found non-binary elements.'
@@ -29,23 +28,26 @@ def loglikelihood(theta, y, x):
         assert theta.ndim == 1 
         assert theta.size == K 
 
-    Gxb = None # Fill in 
-    
+    Gxb = G(x @ theta) # specify link function
+
     # we cannot take the log of 0.0
     Gxb = np.fmax(Gxb, 1e-8)    # truncate below at 0.00000001 
     Gxb = np.fmin(Gxb, 1.-1e-8) # truncate above at 0.99999999
 
-    ll = None # Fill in 
+    # we can write the disttibution of y given x as
+    # pr(y=1 | x)^y*pr(y=0 | x)^(1-y)
+    # so the loglikelihood contribution for each observation is
+    ll = y*np.log(Gxb)+(1-y)*np.log(1-Gxb)
     return ll
 
 
 def starting_values(y,x): 
-     # Fill in
-    return None 
+     # we use ols estimates as starting values
+    return la.inv(x.T@x)@x.T@y
 
 def predict(theta, x): 
     # the "prediction" is just Pr(y=1|x)
-    yhat = None # Fill in  
+    yhat = G(x @ theta)
     return yhat 
 
 def Ginv(p): 
